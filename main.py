@@ -5,18 +5,28 @@ Start the server.
 
 """
 
+import logging
+
+from voixer.logger import Logger
 from voixer.server import Server
 
 
-def main():
+def main(detailed_logging=True):
+    if detailed_logging:
+        FORMAT = "%(levelname)s %(asctime)s %(funcName)s %(lineno)d %(message)s"
+    else:
+        FORMAT = "%(message)s"
+    logging.basicConfig(level=logging.DEBUG, format=FORMAT)
     server = Server()
     try:
-        while True:
-            pass
+        server.run()
     except KeyboardInterrupt:
         server.close()
-        print ""
-        print "Shutting down..."
+        logging.debug("Shutting down")
+    except Exception, e:
+        logging.exception("Uncaught exception!")
+        server.close()
+        logging.debug("Shutting down")
 
 if __name__ == "__main__":
-    main()
+    main(detailed_logging=False)

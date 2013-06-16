@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The client object.
+The client object holds the connection information, and methods.
 
 """
 
@@ -23,14 +23,7 @@ class Client(object):
         self.sock = connection
         self.message_queue = Queue.Queue()
         self.sock.setblocking(0)
-    
-    def __eq__(self, other):
-        """Overwrite the objects equality to compare with self.sock."""
-        return self.sock == other
-    
-    def __ne__(self, other):
-        """Overwrite the objects non equality to compare with self.sock."""
-        return not self.sock == other
+        self.connection_accepted = False
     
     def add_message(self, data):
         """Add a message to the queue."""
@@ -39,10 +32,6 @@ class Client(object):
     def get_message(self):
         """Get the next message out from the queue."""
         return self.message_queue.get_nowait()
-    
-    def send(self, msg):
-        """Wrapper for the sockets send function."""
-        return self.sock.send(msg)
     
     def close(self):
         """Wrapper for the sockets close function."""
