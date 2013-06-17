@@ -7,7 +7,6 @@ Start the server.
 
 import logging
 
-from voixer.logger import Logger
 from voixer.server import Server
 
 
