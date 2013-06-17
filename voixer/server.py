@@ -135,8 +135,8 @@ class Server(object):
         
         """
         for sock in self.inputs:
-            client = self.connections[sock]
             if sock is not (sender or self.server) and sock in self.connections:
+                client = self.connections[sock]
                 client.add_message(data)
                 if sock not in self.outputs:
                     self.outputs.append(sock)

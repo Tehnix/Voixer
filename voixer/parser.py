@@ -14,13 +14,13 @@ from user import User
 class Parser(object):
     """Parse messages received from the clients."""
     
-    def __init__(self, server, sender_client, msg):
+    def __init__(self, server, sender_socket, msg):
         """Setup instance variables."""
         super(Parser, self).__init__()
         self.server = server
-        self.sender = sender_client
+        self.sender_socket = sender_socket
+        self.sender_client = server.connections[sender_socket]
         self.msg = msg
-        self.parse(msg)
         self.protocol = {
             "DISCONNECT": self.client_disconnecting(),
             "PRIVMSG": self.privmsg(),
@@ -28,6 +28,7 @@ class Parser(object):
             "JOIN": self.join(),
             "TALK": self.talk()
         }
+        self.parse(msg)
     
     def starts(self, s):
         """Shorter syntax for the startswith."""
@@ -36,7 +37,7 @@ class Parser(object):
     def parse(self, msg):
         msg = msg.split(":")[0].split()[0]
         try:
-            if self.sender.connection_accepted:
+            if self.sender_client.connection_accepted:
                 self.protocol[msg]
             elif self.starts("CONNECT"):
                 self.client_connecting()
@@ -54,17 +55,21 @@ class Parser(object):
             realname = information.split('"')[3]
             version = information.split('"')[4].strip()
         except IndexError:
-            # TODO: Inform the client of wrong protocol, and disconnect him
+            # TODO: Inform the client of error in syntax
             pass
         else:
             user = User(nickname, realname)
-            self.sender.user = user
-            self.sender.connection_accepted = True
+            self.sender_client.user = user
+            self.sender_client.connection_accepted = True
+            logging.debug("Client has been accepted with nickname %s" % nickname)
+    
+    def client_disconnecting(self):
+        pass
     
     def privmsg(self):
         message = self.msg
         recipient = None
-        self.server.queue_message(message, recipient, self.sender)
+        #self.server.queue_message(message, recipient, self.sender_socket)
     
     def pong(self):
         pass
