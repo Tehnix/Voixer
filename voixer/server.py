@@ -51,7 +51,10 @@ class Server(object):
         and the specified port.
         
         """
-        address = ('localhost', port)
+        # 0.0.0.0 (or an empty string) means that we accept all
+        # incoming connections (if an IP is typed, it'll restrict it
+        # to connections from said IP).
+        address = ('0.0.0.0', port)
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
         logging.debug("Starting server on %s on port %s" % address)

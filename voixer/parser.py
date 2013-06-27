@@ -128,6 +128,21 @@ class Parser(object):
             self.sender_client.join_channel(channel)
 
     def talk(self):
-        """Handle VoIP talking."""
-        pass
+        """
+        Handle VoIP talking.
+
+        The client sends a target client, and a randomly generated
+        number (session key). The targeted client then responds with
+        the number and an action based on what the client wants to do.
+
+        The actions are:
+            REQUEST - request a conversation
+            ACCEPT  - accept a request for a conversation
+            DENY    - deny a request for a conversation
+            END     - end a conversation
+
+        """
+        target = self.data.split(":")[0].split()[1]
+        session_key = self.data.split(":")[0].split()[2]
+        action = self.data.split(":")[1].strip()
 

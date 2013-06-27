@@ -10,7 +10,7 @@ messages = [
     'JOIN: #TurboRoom\r\n',
     #'TALK Michael: Deny',
     #'TALK Michael: Accept',
-    #'DISCONNECT'
+    'DISCONNECT\r\n'
 ]
 server_address = ('localhost', 10000)
 
@@ -25,10 +25,4 @@ sock.send('CONNECT: "Will" "William Wilkinson" 1.0.0\r\n')
 for message in messages:
     print >>sys.stderr, '%s: sending "%s"' % (sock.getsockname(), message)
     sock.send(message)
-while True:
-    data = sock.recv(1024)
-    if data:
-        print data
-    else:
-        break
 sock.close()
