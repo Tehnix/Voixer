@@ -28,4 +28,4 @@ def main(detailed_logging=True):
         logging.debug("Shutting down")
 
 if __name__ == "__main__":
-    main(detailed_logging=False)
+    main(detailed_logging=True)

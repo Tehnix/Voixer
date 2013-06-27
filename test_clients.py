@@ -2,14 +2,12 @@ import socket
 import sys
 
 messages = [
-    'CONNECT: "John" "Mike Johnson" 1.0.2',
-    'PONG: 1413982',
-    #'PRIVMSG #Lobby: Hey All!',
-    #'PRIVMSG John: Hey John!',
+    'MSG #Lobby: Hey All!\r\n',
+    'MSG Johnsie: Hey Johnsie!\r\n',
+    'MSG John: Hey John!\r\n',
     #'TALK John: Request',
     #'Talk John: End',
-    #'PONG: 42231233',
-    #'JOIN: #TurboRoom',
+    'JOIN: #TurboRoom\r\n',
     #'TALK Michael: Deny',
     #'TALK Michael: Accept',
     #'DISCONNECT'
@@ -17,25 +15,20 @@ messages = [
 server_address = ('localhost', 10000)
 
 # Create a TCP/IP socket
-socks = [
-    socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-    #socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-]
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Connect the socket to the port where the server is listening
 print >>sys.stderr, 'connecting to %s port %s' % server_address
-for s in socks:
-    s.connect(server_address)
+sock.connect(server_address)
+sock.send('CONNECT: "Will" "William Wilkinson" 1.0.0\r\n')
 
 for message in messages:
-    # Send messages on both sockets
-    for s in socks:
-        print >>sys.stderr, '%s: sending "%s"' % (s.getsockname(), message)
-        s.send(message)
-    # Read responses on both sockets
-    for s in socks:
-        data = s.recv(1024)
-        print >>sys.stderr, '%s: received "%s"' % (s.getsockname(), data)
-        if not data:
-            print >>sys.stderr, 'closing socket', s.getsockname()
-            s.close()
+    print >>sys.stderr, '%s: sending "%s"' % (sock.getsockname(), message)
+    sock.send(message)
+while True:
+    data = sock.recv(1024)
+    if data:
+        print data
+    else:
+        break
+sock.close()

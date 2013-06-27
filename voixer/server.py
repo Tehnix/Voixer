@@ -7,12 +7,14 @@ and send the messages to the parser.
 """
 import select
 import socket
-import sys
 import Queue
 import logging
+import random
+import sys
 
 from parser import Parser
 from client import Client
+from channel import Channel
 
 
 class Server(object):
@@ -22,8 +24,8 @@ class Server(object):
     will be kept in self.outputs.
     
     """
-    
-    def __init__(self, port=10000):
+
+    def __init__(self, port=10000, ping_time=150, channel="#lobby"):
         """Set up the instance variables."""
         super(Server, self).__init__()
         self.server = None
@@ -31,13 +33,18 @@ class Server(object):
         self.connections = {}
         self.inputs = []
         self.outputs = []
-    
+        self.ping_time = ping_time
+        self.default_channel = channel
+        self.r = []
+        self.w = []
+        self.e = []
+
     def run(self):
         """Launch the server."""
         self.server = self.setup_socket(self.port)
         self.inputs.append(self.server)
         self.handle_connections()
-    
+
     def setup_socket(self, port):
         """
         Creates a non-blocking TCP socket, binds it to localhost, 
@@ -51,7 +58,7 @@ class Server(object):
         server.bind(address)
         server.listen(5)
         return server
-        
+
     def handle_connections(self):
         """
         Handle the readable, writable and exceptional sockets by using
@@ -62,17 +69,17 @@ class Server(object):
         already_waiting = False
         while self.inputs:
             if not already_waiting:
-                logging.debug("Wating for sockets to be ready...")
-            r, w, e = select.select(self.inputs, self.outputs, self.inputs, 1)
+                logging.debug("Waiting for sockets to be ready...")
+            self.r, self.w, self.e = select.select(self.inputs, self.outputs, self.inputs, 2)
             already_waiting = False
-            if not (r or w or e):
-                # TODO: check pings here !
+            if not (self.r or self.w or self.e):
+                self.ping()
                 already_waiting = True
                 continue
-            self.readables(r)
-            self.writeables(w)
-            self.exceptionals(e)
-    
+            self.readables(self.r)
+            self.writeables(self.w)
+            self.exceptionals(self.e)
+
     def readables(self, readables):
         """
         Handle the readable sockets. If the server socket is readable, it is
@@ -90,22 +97,24 @@ class Server(object):
                 # We're ready to accept a connection
                 connection, address = sock.accept()
                 logging.debug("New connection from %s:%s" % address)
-                client = Client(connection, address)
+                client = Client(self, connection, address)
                 self.connections[connection] = client
                 self.inputs.append(connection)
             else:
                 data = sock.recv(1024)
                 if data:
-                    logging.debug("Received data '%s' from %s" % (data, sock.getpeername()))
-                    Parser(self, sock, data)
+                    for d in data.split("\r\n"):
+                        if d == "":
+                            continue
+                        logging.debug(
+                            "Received data '%s' from %s" % (
+                                d, sock.getpeername()
+                            )
+                        )
+                        Parser(self, sock, d)
                 else:
-                    logging.debug("Closing connection to %s" % (sock.getpeername(), ))
-                    if sock in self.outputs:
-                        self.outputs.remove(sock)
-                    self.inputs.remove(sock)
-                    del self.connections[sock]
-                    sock.close()
-    
+                    self.remove_client(sock)
+
     def writeables(self, writeables):
         """Write the queued messages to the sockets that are writeable."""
         for sock in writeables:
@@ -113,37 +122,102 @@ class Server(object):
             try:
                 msg = client.get_message()
             except Queue.Empty:
-                logging.debug("No messages queued for %s" % (sock.getpeername(), ))
+                logging.debug(
+                    "No messages queued for %s" % (sock.getpeername(), )
+                )
                 self.outputs.remove(sock)
             else:
                 logging.debug("Sending '%s' to %s" % (msg, sock.getpeername()))
                 sock.send(msg)
-    
+
     def exceptionals(self, exceptionals):
         """Handle if there is an error in the socket by removing it."""
         for sock in exceptionals:
-            logging.debug("Handling exceptional condition for %s" % sock.getpeername())
+            logging.debug(
+                "Handling exceptional condition for %s" % sock.getpeername()
+            )
             client = self.connections[sock]
             if client in self.outputs:
                 self.outputs.remove(client)
             self.inputs.remove(client)
-    
-    def queue_message(self, data, recipient, sender):
+
+    def queue_message(self, data, sock):
+        """Put a message in the queue for a client."""
+        client = self.connections[sock]
+        client.add_message(data)
+        if sock not in self.outputs:
+            self.outputs.append(sock)
+
+    def queue_message_to_channel(self, data, chan, sender):
+        """Put a message in the queue of all the clients in a channel."""
+        if chan in Channel.channels:
+            for user in Channel.channels[chan].users_in_room:
+                sock = user.client.sock
+                if sock is not sender:
+                    self.queue_message(data, sock)
+
+    def queue_message_to_client(self, data, recipient, sender):
         """
         Put the message in the output queue for all the other connections,
         than the server and the sender.
         
         """
-        for sock in self.inputs:
-            if sock is not (sender or self.server) and sock in self.connections:
-                client = self.connections[sock]
-                client.add_message(data)
-                if sock not in self.outputs:
-                    self.outputs.append(sock)
-    
+        for sock, client in self.connections.iteritems():
+            if client.user.nickname.lower() == recipient.lower():
+                self.queue_message(data, sock)
+
+    def ping(self):
+        """
+        Periodically check if a client is still connected, by sending
+        out a ping with a random number, and then expect the client
+        to respond with a pong and the same number.
+        
+        """
+        for sock in self.connections.keys():
+            client = self.connections[sock]
+            exceeded_ping = self.ping_time + (self.ping_time / 3)
+            if client.time_since_pinged() >= exceeded_ping:
+                client.ready_for_ping = False
+                logging.debug(
+                    "No ping received for %s" % (sock.getpeername(), )
+                )
+                self.remove_client(sock)
+            elif client.ready_for_ping and client.time_since_pinged() >= self.ping_time:
+                random_number = random.randint(100000000, 999999999)
+                client.ping(random_number)
+                logging.debug(
+                    "Sending 'PING: %s' to %s" % (
+                        random_number, sock.getpeername()
+                    )
+                )
+                sock.send("PING: %s\r\n" % random_number)
+
+    def remove_client(self, sock):
+        """Close the connection to a client, and remove it entirely."""
+        logging.debug("Closing connection to %s" % (sock.getpeername(), ))
+        sock.close()
+        client = self.connections[sock]
+        if client.user is not None:
+            logging.debug("Cleaning up after user '%s'" % client.user.nickname)
+            client.user.clean_up_user()
+        if sock in self.outputs:
+            self.outputs.remove(sock)
+        # If a socket gets cleaned up in readables, but is also found in the
+        # writeables list, then it'll cause an error, so we make sure it's
+        # removed.
+        if sock in self.w:
+            self.w.remove(sock)
+        self.inputs.remove(sock)
+        del self.connections[sock]
+
     def close(self):
         """Close all open connections, including the servers own socket."""
         logging.debug("Closing all connections...")
-        for sock, client in self.connections.iteritems():
+        for sock, client in self.connections.items():
             client.close()
-                
+            if client.user is not None:
+                client.user.clean_up_user()
+        if self.server is not None:
+            self.server.close()
+        sys.exit(0)
+
