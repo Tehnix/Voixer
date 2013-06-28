@@ -8,7 +8,6 @@ care of directing them to the correct client connections.
 
 import threading
 import Queue
-import pyaudio
 
 
 class Talk(threading.Thread):
