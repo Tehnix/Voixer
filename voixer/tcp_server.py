@@ -5,6 +5,7 @@ The server module is responsible for keeping track of the connections,
 and send the messages to the parser.
 
 """
+import threading
 import select
 import socket
 import Queue
@@ -17,7 +18,7 @@ from tcp_client import TCPClient
 from channel import Channel
 
 
-class Server(object):
+class TCPServer(threading.Thread):
     """
     Connections that we expect to read from will be kept in the 
     self.inputs list, whereas the ones we expect to write to 
@@ -27,10 +28,11 @@ class Server(object):
 
     def __init__(self, port=10000, ping_time=150, chan="#lobby", hostname="ip.voice.org"):
         """Set up the instance variables."""
-        super(Server, self).__init__()
-        self.server = None
+        super(TCPServer, self).__init__()
+        self.tcp_server = None
+        self.upd_server = None
         self.port = port
-        self.connections = {}
+        self.tcp_connections = {}
         self.inputs = []
         self.outputs = []
         self.ping_time = ping_time
@@ -42,14 +44,13 @@ class Server(object):
 
     def run(self):
         """Launch the server."""
-        self.server = self.setup_socket(self.port)
-        self.inputs.append(self.server)
+        self.tcp_server = self.setup_tcp_server(self.port)
+        self.inputs.append(self.tcp_server)
         self.handle_connections()
 
-    def setup_socket(self, port):
+    def setup_tcp_server(self, port):
         """
-        Creates a non-blocking TCP socket, binds it to localhost, 
-        and the specified port.
+        Creates a non-blocking TCP socket, binds it to the specified port.
         
         """
         # 0.0.0.0 (or an empty string) means that we accept all
@@ -58,7 +59,7 @@ class Server(object):
         address = ('0.0.0.0', port)
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
-        logging.debug("Starting server on %s on port %s" % address)
+        logging.debug("Starting tcp server on %s on port %s" % address)
         server.bind(address)
         server.listen(5)
         return server
@@ -97,13 +98,14 @@ class Server(object):
         
         """
         for sock in readables:
-            if sock is self.server:
+            if sock is self.tcp_server:
                 # We're ready to accept a connection
                 connection, address = sock.accept()
                 logging.debug("New connection from %s:%s" % address)
                 client = TCPClient(self, connection, address)
-                self.connections[connection] = client
+                self.tcp_connections[connection] = client
                 self.inputs.append(connection)
+                logging.debug(connection.getaddrinfo())
             else:
                 data = sock.recv(1024)
                 if data:
@@ -122,7 +124,7 @@ class Server(object):
     def writeables(self, writeables):
         """Write the queued messages to the sockets that are writeable."""
         for sock in writeables:
-            client = self.connections[sock]
+            client = self.tcp_connections[sock]
             try:
                 msg = client.get_message()
             except Queue.Empty:
@@ -140,14 +142,14 @@ class Server(object):
             logging.debug(
                 "Handling exceptional condition for %s" % sock.getpeername()
             )
-            client = self.connections[sock]
+            client = self.tcp_connections[sock]
             if client in self.outputs:
                 self.outputs.remove(client)
             self.inputs.remove(client)
 
     def queue_message(self, data, sock):
         """Put a message in the queue for a client."""
-        client = self.connections[sock]
+        client = self.tcp_connections[sock]
         client.add_message(data)
         if sock not in self.outputs:
             self.outputs.append(sock)
@@ -166,7 +168,7 @@ class Server(object):
         than the server and the sender.
         
         """
-        for sock, client in self.connections.iteritems():
+        for sock, client in self.tcp_connections.iteritems():
             if client.user.nickname.lower() == recipient.lower():
                 self.queue_message(data, sock)
 
@@ -177,8 +179,8 @@ class Server(object):
         to respond with a pong and the same number.
         
         """
-        for sock in self.connections.keys():
-            client = self.connections[sock]
+        for sock in self.tcp_connections.keys():
+            client = self.tcp_connections[sock]
             exceeded_ping = self.ping_time + (self.ping_time / 3)
             if client.time_since_pinged() >= exceeded_ping:
                 client.ready_for_ping = False
@@ -200,7 +202,7 @@ class Server(object):
         """Close the connection to a client, and remove it entirely."""
         logging.debug("Closing connection to %s" % (sock.getpeername(), ))
         sock.close()
-        client = self.connections[sock]
+        client = self.tcp_connections[sock]
         if client.user is not None:
             logging.debug("Cleaning up after user '%s'" % client.user.nickname)
             client.user.clean_up_user()
@@ -212,16 +214,16 @@ class Server(object):
         if sock in self.w:
             self.w.remove(sock)
         self.inputs.remove(sock)
-        del self.connections[sock]
+        del self.tcp_connections[sock]
 
     def close(self):
         """Close all open connections, including the servers own socket."""
         logging.debug("Closing all connections...")
-        for sock, client in self.connections.items():
+        for sock, client in self.tcp_connections.items():
             client.close()
             if client.user is not None:
                 client.user.clean_up_user()
-        if self.server is not None:
-            self.server.close()
+        if self.tcp_server is not None:
+            self.tcp_server.close()
         sys.exit(0)
 

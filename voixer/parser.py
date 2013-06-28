@@ -9,6 +9,7 @@ instances, and taking action accordingly.
 import logging
 import time
 import random
+import threading
 
 from user import User
 from talk import Talk
@@ -28,7 +29,7 @@ class Parser(object):
         super(Parser, self).__init__()
         self.server = server
         self.sender_socket = sender_socket
-        self.sender_client = server.connections[sender_socket]
+        self.sender_client = server.tcp_connections[sender_socket]
         self.data = data
         self.protocol = {
             "DISCONNECT": self.client_disconnecting,
@@ -207,5 +208,6 @@ class Parser(object):
         if talk is not None:
             talk_action = TalkAction(target, action)
             talk.add_action(talk_action)
-            talk.start()
+            thread = threading.Thread(target=talk.run)
+            thread.start()
 

@@ -4,10 +4,11 @@
 Start the server.
 
 """
-
+import threading
 import logging
 
-from voixer.server import Server
+from voixer.tcp_server import TCPServer
+from voixer.udp_server import UDPServer
 
 
 def main(detailed_logging=True):
@@ -16,15 +17,21 @@ def main(detailed_logging=True):
     else:
         FORMAT = "%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT)
-    server = Server()
+    tcp_server = TCPServer()
+    udp_server = UDPServer()
     try:
-        server.run()
+        tcp_thread = threading.Thread(target=tcp_server.run)
+        udp_thread = threading.Thread(target=udp_server.run)
+        tcp_thread.start()
+        udp_thread.start()
+        tcp_thread.join()
+        udp_thread.join()
     except KeyboardInterrupt:
-        server.close()
+        tcp_server.close()
         logging.debug("Shutting down")
     except Exception, e:
         logging.exception("Uncaught exception!")
-        server.close()
+        tcp_server.close()
         logging.debug("Shutting down")
 
 if __name__ == "__main__":
