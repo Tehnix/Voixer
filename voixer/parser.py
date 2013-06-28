@@ -62,7 +62,7 @@ class Parser(object):
     def initial_connect(self):
         """Invite the new client to the default channel."""
         self.server.queue_message(
-            "ACCEPTED: %s" % self.server.hostname, self.sender_socket
+            "ACCEPTED: %s\r\n" % self.server.hostname, self.sender_socket
         )
         chan = self.server.default_channel
         if chan:
