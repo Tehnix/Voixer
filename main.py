@@ -17,8 +17,8 @@ def main(detailed_logging=True):
     else:
         FORMAT = "%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT)
-    tcp_server = TCPServer()
-    udp_server = UDPServer()
+    tcp_server = TCPServer(port=9300)
+    udp_server = UDPServer(port=9301)
     try:
         tcp_thread = threading.Thread(target=tcp_server.run)
         udp_thread = threading.Thread(target=udp_server.run)
@@ -28,10 +28,12 @@ def main(detailed_logging=True):
         udp_thread.join()
     except KeyboardInterrupt:
         tcp_server.close()
+        udp_server.close()
         logging.debug("Shutting down")
     except Exception, e:
         logging.exception("Uncaught exception!")
         tcp_server.close()
+        udp_server.close()
         logging.debug("Shutting down")
 
 if __name__ == "__main__":

@@ -105,7 +105,6 @@ class TCPServer(threading.Thread):
                 client = TCPClient(self, connection, address)
                 self.tcp_connections[connection] = client
                 self.inputs.append(connection)
-                logging.debug(connection.getaddrinfo())
             else:
                 data = sock.recv(1024)
                 if data:

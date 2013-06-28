@@ -8,6 +8,7 @@ care of directing them to the correct client connections.
 
 import threading
 import Queue
+import logging
 
 
 class Talk(threading.Thread):
@@ -25,6 +26,8 @@ class Talk(threading.Thread):
             raise NameError("There already exists a session with that number")
         Talk.talk_sessions[self.session_key] = self
         self.action_queue = Queue.Queue()
+        self.talk_queue = Queue.Queue()
+        self.udp_server = None
 
     def run(self):
         """
@@ -35,7 +38,8 @@ class Talk(threading.Thread):
         """
         while True:
             try:
-                talk_action = self.action_queue.get(True, timeout=30)
+                logging.debug(">>> Waiting for action")
+                talk_action = self.action_queue.get(True, 150)
             except Queue.Empty:
                 break
             else:
@@ -48,16 +52,40 @@ class Talk(threading.Thread):
         action = talk_action.action
         if target is None:
             if action == "INITIATE":
+                logging.debug(
+                    ">>> Starting VoIP conversation for '%s'" % self.session_key
+                )
                 self.voip()
-                # TODO initiate the VoIP call with all the self.participants
-                pass
         else:
             # TODO implement ACCEPT/DENY etc
             pass
 
     def voip(self):
         """Initiate the VoIP conversation."""
-        pass
+        logging.debug(
+            ">>> VoIP started for '%s'" % self.session_key
+        )
+        while True:
+            try:
+                talk_data = self.talk_queue.get(True)
+            except Queue.Empty:
+                pass
+            else:
+                if not self.participants:
+                    logging.debug(
+                        ">>> Data present, but nobody is listening: '%s'" % talk_data.data
+                    )
+                for conn in self.participants:
+                    if conn != talk_data.address:
+                        logging.debug(">>> Sending data '%s' from %s to %s" % (talk_data.data, talk_data.address, conn))
+                        try:
+                            self.udp_server.sendto(talk_data.data, conn)
+                        except TypeError:
+                            logging.exception(">>> Invalid data?: '%s'" % talk_data.data)
+        logging.debug(
+            ">>> VoIP ended for '%s'" % self.session_key
+        )
+
 
     def add_action(self, talk_action):
         """Add a TalkAction object to the action queue."""

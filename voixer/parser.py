@@ -16,11 +16,6 @@ from talk import Talk
 from talk_action import TalkAction
 
 
-## START OF TESTING ##
-Talk(631720830760049)
-## END OF TESTING ##
-
-
 class Parser(object):
     """Parse messages received from the clients."""
 
@@ -55,8 +50,6 @@ class Parser(object):
             logging.debug("Executing action '%s'" % action)
             if self.starts("CONNECT"):
                 self.client_connecting()
-            elif self.starts("TALKSESSION"):
-                self.talk_session()
             elif self.sender_client.connection_accepted:
                 self.protocol[action]()
             else:
@@ -152,27 +145,6 @@ class Parser(object):
                 channel = "#" + channel
             self.sender_client.join_channel(channel)
 
-    def talk_session(self):
-        """Put the UDP client into a talk session."""
-        session_key = int(self.data.split(":")[1].strip())
-        try:
-            session_key = int(session_key)
-        except ValueError:
-            self.server.queue_message(
-                "SESSIONERROR: Invalid session key '%s'\r\n" % session_key,
-                self.sender_socket
-            )
-        else:
-            if session_key in Talk.talk_sessions:
-                talk = Talk.talk_sessions[session_key]
-                talk_action = TalkAction(None, "INITIATE")
-                talk.add_action(talk_action)
-            else:
-                self.server.queue_message(
-                    "SESSIONERROR: Invalid session key '%s'\r\n" % session_key,
-                    self.sender_socket
-                )
-
     def talk(self):
         """
         Handle VoIP talking.
@@ -197,6 +169,10 @@ class Parser(object):
             while session_key in Talk.talk_sessions:
                 session_key = random.randint(100000000000000, 999999999999999)
             talk = Talk(session_key)
+            self.server.queue_message(
+                "TALK %s %s: REQUEST\r\n" % (target, session_key),
+                self.sender_socket
+            )
         else:
             session_key = self.data.split(":")[0].split()[2]
             try:

@@ -8,7 +8,9 @@ import threading
 import socket
 import logging
 
-from parser import Parser
+from talk import Talk
+from talk_action import TalkAction
+from talk_data import TalkData
 
 
 class UDPServer(threading.Thread):
@@ -19,6 +21,7 @@ class UDPServer(threading.Thread):
         super(UDPServer, self).__init__()
         self.udp_server = None
         self.port = port
+        self.udp_connections = {}
 
     def run(self):
         """Initiate the UDP server."""
@@ -35,15 +38,44 @@ class UDPServer(threading.Thread):
         # to connections from said IP).
         address = ('0.0.0.0', port)
         server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        logging.debug("Starting udp server on %s on port %s" % address)
+        logging.debug(">>> Starting udp server on %s on port %s" % address)
         server.bind(address)
         return server
 
     def handle_connections(self):
         """Handle the UDP connections."""
         while True:
-            data, address = self.udp_server.recvfrom(2048)
-            logging.debug(">>> Sender: %s. Msg: %s." % (address, data))
+            rawdata, address = self.udp_server.recvfrom(2048)
+            if rawdata.startswith("TALKSESSION"):
+                session_key = rawdata.split(":")[1].strip()
+                self.talk_session(session_key, address)
+            elif address in self.udp_connections:
+                for data in rawdata.split("\r\n"):
+                    if data == "":
+                        continue
+                    logging.debug(">>> Creating TalkData for '%s'" % data)
+                    talk = self.udp_connections[address]
+                    talk_data = TalkData(address, data)
+                    talk.talk_queue.put(talk_data)
+
+    def talk_session(self, session_key, address):
+        """Put the UDP client into a talk session."""
+        logging.debug(
+            ">>> Putting %s into session with key '%s'" % (address, session_key)
+        )
+        try:
+            session_key = int(session_key)
+        except ValueError:
+            pass
+        else:
+            if session_key in Talk.talk_sessions:
+                logging.debug(">>> Session found with session key '%s'" % session_key)
+                talk = Talk.talk_sessions[session_key]
+                talk.participants.append(address)
+                self.udp_connections[address] = talk
+                talk.udp_server = self.udp_server
+                talk_action = TalkAction(None, "INITIATE")
+                talk.add_action(talk_action)
 
     def close(self):
         """Close down the UDP server."""

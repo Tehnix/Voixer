@@ -1,6 +1,5 @@
 import socket
 import sys
-import time
 
 messages = [
     'MSG #Lobby: Hey All!\r\n',

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The talk object takes handles the UDP VoIP connections, and takes
-care of directing them to the correct client connections.
+The TalkAction object holds the address and data of the user.
 
 """
 
