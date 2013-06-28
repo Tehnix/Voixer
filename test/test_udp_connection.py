@@ -19,11 +19,10 @@ stream = p.open(
     frames_per_buffer=chunk
 )
 
-server_address = ('localhost', 10000)
+server_address = ('192.81.221.23', 10000)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.connect(server_address)
 
-sock.send("TALKSESSION: %s \r\n" % 631720830760049)
+sock.sendto("TALKSESSION: %s \r\n" % 631720830760049, server_address)
 
 
 
