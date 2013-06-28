@@ -162,28 +162,45 @@ class Parser(object):
         """
         talk = None
         action = self.data.split(":")[1].strip()
-        target = self.data.split(":")[0].split()[1]
+        try:
+            target = self.data.split(":")[0].split()[1]
+        except IndexError:
+            target = None
         logging.debug("Talk action '%s'" % action)
-        if action == "REQUEST":
-            session_key = random.randint(100000000000000, 999999999999999)
-            while session_key in Talk.talk_sessions:
+        try:
+            if action == "REQUEST":
                 session_key = random.randint(100000000000000, 999999999999999)
-            talk = Talk(session_key)
-            self.server.queue_message(
-                "TALK %s %s: REQUEST\r\n" % (target, session_key),
-                self.sender_socket
-            )
-        else:
-            session_key = self.data.split(":")[0].split()[2]
-            try:
-                talk = Talk.talk_sessions[session_key]
-            except KeyError:
+                while session_key in Talk.talk_sessions:
+                    session_key = random.randint(100000000000000, 999999999999999)
+                talk = Talk(session_key)
                 self.server.queue_message(
-                    "TALK: BADSESSIONKEY\r\n", self.sender_socket
+                    "TALK %s %s: REQUEST\r\n" % (target, session_key),
+                    self.sender_socket
                 )
+                self.server.queue_message_to_client(
+                    "TALK %s %s: REQUEST\r\n" % (self.sender_client.user.nickname, session_key),
+                    target,
+                    self.sender_socket
+                )
+                talk.tcp_clients.append(self.sender_client)
+                thread = threading.Thread(target=talk.run)
+                thread.start()
+            else:
+                session_key = int(self.data.split(":")[0].split()[1])
+                try:
+                    talk = Talk.talk_sessions[session_key]
+                except KeyError:
+                    self.server.queue_message(
+                        "TALK: BADSESSIONKEY\r\n", self.sender_socket
+                    )
+        except IndexError:
+            logging.warning("Something went wrong parsin '%s'" % self.data)
         if talk is not None:
-            talk_action = TalkAction(target, action)
-            talk.add_action(talk_action)
-            thread = threading.Thread(target=talk.run)
-            thread.start()
+            if self.sender_client not in talk.tcp_clients:
+                talk.tcp_clients.append(self.sender_client)
+            if action == "END":
+                talk.close()
+            else:
+                talk_action = TalkAction(self.sender_client, target, action)
+                talk.add_action(talk_action)
 

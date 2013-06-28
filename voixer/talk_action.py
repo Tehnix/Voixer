@@ -12,6 +12,7 @@ import time
 
 class TalkAction(object):
 
-    def __init__(self, target, action):
+    def __init__(self, instigator, target, action):
+        self.instigator = instigator
         self.target = target
         self.action = action

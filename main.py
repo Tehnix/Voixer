@@ -17,8 +17,8 @@ def main(detailed_logging=True):
     else:
         FORMAT = "%(message)s"
     logging.basicConfig(level=logging.DEBUG, format=FORMAT)
-    tcp_server = TCPServer(port=9300)
-    udp_server = UDPServer(port=9301)
+    tcp_server = TCPServer(port=10000)
+    udp_server = UDPServer(port=10001)
     try:
         tcp_thread = threading.Thread(target=tcp_server.run)
         udp_thread = threading.Thread(target=udp_server.run)

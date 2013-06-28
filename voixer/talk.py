@@ -21,6 +21,7 @@ class Talk(threading.Thread):
         """Set up the instance variables."""
         super(Talk, self).__init__()
         self.session_key = session_key
+        self.tcp_clients = []
         self.participants = []
         if self.session_key in Talk.talk_sessions:
             raise NameError("There already exists a session with that number")
@@ -50,15 +51,28 @@ class Talk(threading.Thread):
         """Handle the TalkAction object."""
         target = talk_action.target
         action = talk_action.action
-        if target is None:
-            if action == "INITIATE":
-                logging.debug(
-                    ">>> Starting VoIP conversation for '%s'" % self.session_key
-                )
-                self.voip()
-        else:
-            # TODO implement ACCEPT/DENY etc
-            pass
+        logging.debug(
+            "Target: %s. Action: %s. Connections: %s" % (target, action, len(self.tcp_clients))
+        )
+        if action == "INITIATE":
+            logging.debug(
+                ">>> Starting VoIP conversation for '%s'" % self.session_key
+            )
+            self.voip()
+        elif action == "DENY":
+            for client in self.tcp_clients:
+                if client is not talk_action.instigator:
+                    client.server.queue_message(
+                        "TALK %s: DENIED" % self.session_key,
+                        client.sock
+                    )
+        elif action == "ACCEPT":
+            for client in self.tcp_clients:
+                if client is not talk_action.instigator:
+                    client.server.queue_message(
+                        "TALK %s: ACCEPTED" % self.session_key,
+                        client.sock
+                    )
 
     def voip(self):
         """Initiate the VoIP conversation."""
@@ -93,5 +107,9 @@ class Talk(threading.Thread):
 
     def close(self):
         """Close down the talk session."""
-        for udp_client in self.participants:
-            udp_client.close()
+        logging.debug("Closing down Talk Object with session '%s'" % self.session_key)
+        for client in self.tcp_clients:
+            client.server.queue_message(
+                "TALK %s: END" % self.session_key,
+                client.sock
+            )

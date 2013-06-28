@@ -74,7 +74,7 @@ class UDPServer(threading.Thread):
                 talk.participants.append(address)
                 self.udp_connections[address] = talk
                 talk.udp_server = self.udp_server
-                talk_action = TalkAction(None, "INITIATE")
+                talk_action = TalkAction(None, None, "INITIATE")
                 talk.add_action(talk_action)
 
     def close(self):
