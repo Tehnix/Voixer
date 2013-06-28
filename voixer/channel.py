@@ -9,6 +9,7 @@ Object to hold the channel data.
 class Channel(object):
     """Container for the channel data."""
 
+    # {channel_name : Channel Object} - Keeps track of channel names
     channels = {}
 
     def __init__(self, name):

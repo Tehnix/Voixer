@@ -5,9 +5,9 @@ messages = [
     'MSG #Lobby: Hey All!\r\n',
     'MSG Johnsie: Hey Johnsie!\r\n',
     'MSG John: Hey John!\r\n',
-    #'TALK John: Request',
+    'TALK John: Request',
     #'Talk John: End',
-    'JOIN: #TurboRoom\r\n',
+    #'JOIN: #TurboRoom\r\n',
     #'TALK Michael: Deny',
     #'TALK Michael: Accept',
     'DISCONNECT\r\n'

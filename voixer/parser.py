@@ -10,6 +10,8 @@ import logging
 import time
 
 from user import User
+from talk import Talk
+from talk_action import TalkAction
 
 
 class Parser(object):
@@ -59,6 +61,9 @@ class Parser(object):
 
     def initial_connect(self):
         """Invite the new client to the default channel."""
+        self.server.queue_message(
+            "ACCEPTED: %s" % self.server.hostname, self.sender_socket
+        )
         chan = self.server.default_channel
         if chan:
             self.sender_client.join_channel(chan)
@@ -86,14 +91,14 @@ class Parser(object):
                 self.sender_client.user = user
                 self.sender_client.connection_accepted = True
                 logging.debug(
-                    "Client has been accepted with nickname %s" % user.nickname
+                    "TCPClient has been accepted with nickname %s" % user.nickname
                 )
                 self.initial_connect()
 
     def client_disconnecting(self):
         """Close a clients connection and remove him."""
         logging.debug(
-            "Client %s disconnecting" % (self.sender_socket.getpeername(), )
+            "TCPClient %s disconnecting" % (self.sender_socket.getpeername(), )
         )
         self.server.remove_client(self.sender_socket)
 
@@ -142,7 +147,14 @@ class Parser(object):
             END     - end a conversation
 
         """
+        action = self.data.split(":")[1].strip()
         target = self.data.split(":")[0].split()[1]
         session_key = self.data.split(":")[0].split()[2]
-        action = self.data.split(":")[1].strip()
+        try:
+            talk = Talk(session_key)
+        except NameError:
+            talk = Talk.talk_sessions[session_key]
+        talk_action = TalkAction(target, action)
+        talk.add_action(talk_action)
+        talk.start()
 

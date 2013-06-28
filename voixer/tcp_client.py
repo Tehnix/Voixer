@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-The client object holds the connection information, and methods.
+The client object holds the connection information, and methods of the client
+connected via TCP.
 
 """
 
@@ -12,8 +13,8 @@ import logging
 from channel import Channel
 
 
-class Client(object):
-    """Client object."""
+class TCPClient(object):
+    """TCPClient object."""
     
     def __init__(self, server, connection, address):
         """
@@ -21,7 +22,7 @@ class Client(object):
         along with setting the socket to non blocking.
         
         """
-        super(Client, self).__init__()
+        super(TCPClient, self).__init__()
         self.user = None
         self.address = address
         self.sock = connection

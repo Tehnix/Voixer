@@ -13,7 +13,7 @@ import random
 import sys
 
 from parser import Parser
-from client import Client
+from tcp_client import TCPClient
 from channel import Channel
 
 
@@ -25,7 +25,7 @@ class Server(object):
     
     """
 
-    def __init__(self, port=10000, ping_time=150, channel="#lobby"):
+    def __init__(self, port=10000, ping_time=150, chan="#lobby", hostname="ip.voice.org"):
         """Set up the instance variables."""
         super(Server, self).__init__()
         self.server = None
@@ -34,7 +34,8 @@ class Server(object):
         self.inputs = []
         self.outputs = []
         self.ping_time = ping_time
-        self.default_channel = channel
+        self.default_channel = chan
+        self.hostname = hostname
         self.r = []
         self.w = []
         self.e = []
@@ -100,7 +101,7 @@ class Server(object):
                 # We're ready to accept a connection
                 connection, address = sock.accept()
                 logging.debug("New connection from %s:%s" % address)
-                client = Client(self, connection, address)
+                client = TCPClient(self, connection, address)
                 self.connections[connection] = client
                 self.inputs.append(connection)
             else:

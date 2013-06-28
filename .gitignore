@@ -1,5 +1,7 @@
 *.py[cod]
 
+RELEASE-VERSION
+
 # C extensions
 *.so
 

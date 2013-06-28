@@ -8,7 +8,8 @@ Object to hold the user data.
 
 class User(object):
     """Container to user data."""
-    
+
+    # [nickname] - Keeps track of used nicknames so we can avoid clashes
     used_nicknames = []
     
     def __init__(self, client, nickname, real_name):
