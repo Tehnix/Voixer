@@ -8,6 +8,7 @@ care of directing them to the correct client connections.
 
 import threading
 import Queue
+import pyaudio
 
 
 class Talk(threading.Thread):
@@ -48,11 +49,16 @@ class Talk(threading.Thread):
         action = talk_action.action
         if target is None:
             if action == "INITIATE":
+                self.voip()
                 # TODO initiate the VoIP call with all the self.participants
                 pass
         else:
             # TODO implement ACCEPT/DENY etc
             pass
+
+    def voip(self):
+        """Initiate the VoIP conversation."""
+        pass
 
     def add_action(self, talk_action):
         """Add a TalkAction object to the action queue."""

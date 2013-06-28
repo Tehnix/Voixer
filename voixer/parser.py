@@ -15,6 +15,11 @@ from talk import Talk
 from talk_action import TalkAction
 
 
+## START OF TESTING ##
+Talk(631720830760049)
+## END OF TESTING ##
+
+
 class Parser(object):
     """Parse messages received from the clients."""
 
