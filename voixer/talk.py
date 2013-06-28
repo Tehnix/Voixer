@@ -23,7 +23,7 @@ class Talk(threading.Thread):
         self.participants = []
         if self.session_key in Talk.talk_sessions:
             raise NameError("There already exists a session with that number")
-        Talk.session_key[self.session_key] = self
+        Talk.talk_sessions[self.session_key] = self
         self.action_queue = Queue.Queue()
 
     def run(self):
@@ -44,7 +44,15 @@ class Talk(threading.Thread):
 
     def handle(self, talk_action):
         """Handle the TalkAction object."""
-        pass
+        target = talk_action.target
+        action = talk_action.action
+        if target is None:
+            if action == "INITIATE":
+                # TODO initiate the VoIP call with all the self.participants
+                pass
+        else:
+            # TODO implement ACCEPT/DENY etc
+            pass
 
     def add_action(self, talk_action):
         """Add a TalkAction object to the action queue."""

@@ -1,11 +1,12 @@
 import socket
 import sys
+import time
 
 messages = [
     'MSG #Lobby: Hey All!\r\n',
     'MSG Johnsie: Hey Johnsie!\r\n',
     'MSG John: Hey John!\r\n',
-    'TALK John: Request',
+    'TALK John: REQUEST',
     #'Talk John: End',
     #'JOIN: #TurboRoom\r\n',
     #'TALK Michael: Deny',
@@ -23,6 +24,6 @@ sock.connect(server_address)
 sock.send('CONNECT: "Will" "William Wilkinson" 1.0.0\r\n')
 
 for message in messages:
-    print >>sys.stderr, '%s: sending "%s"' % (sock.getsockname(), message)
+    print >>sys.stderr, 'sending "%s"' % (message)
     sock.send(message)
 sock.close()

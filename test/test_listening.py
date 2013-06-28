@@ -11,16 +11,18 @@ sock.connect(server_address)
 sock.send('CONNECT: "Johnsie" "John Wilkens" 1.0.0')
 
 while True:
-    data = sock.recv(1024)
-    if data:
-        print data
-        if data.startswith("PING"):
-            ping_num = data.split(":")[1].strip()
-            pong = "PONG: %s" % ping_num
-            sock.send(pong)
-            print ">>>  %s" % pong
-        if data.startswith("MSG"):
-            sock.send("JOIN: #Hej man")
+    rawdata = sock.recv(1024)
+    if rawdata:
+        for data in rawdata.split("\r\n"):
+            print data
+            if data.startswith("PING"):
+                ping_num = data.split(":")[1].strip()
+                pong = "PONG: %s\r\n" % ping_num
+                sock.send(pong)
+                print ">>>  %s" % pong
+            if data.startswith("MSG"):
+                sock.send("JOIN: #Hej man\r\n")
+                sock.send("MSG #lobby: Johnsie just send this!\r\n")
     else:
         break
     time.sleep(2)

@@ -8,6 +8,7 @@ instances, and taking action accordingly.
 
 import logging
 import time
+import random
 
 from user import User
 from talk import Talk
@@ -46,21 +47,32 @@ class Parser(object):
         action = data.split(":")[0].split()[0]
         try:
             logging.debug("Executing action '%s'" % action)
-            if self.sender_client.connection_accepted:
-                self.protocol[action]()
-            elif self.starts("CONNECT"):
+            if self.starts("CONNECT"):
                 self.client_connecting()
+            elif self.starts("TALKSESSION"):
+                self.talk_session()
+            elif self.sender_client.connection_accepted:
+                self.protocol[action]()
             else:
-                self.sender_client.add_message(
-                    "NOTACCEPTED: Please send or resend the CONNECT request\r\n"
+                self.server.queue_message(
+                    "NOTACCEPTED: Please send or resend the CONNECT request\r\n",
+                    self.sender_socket
                 )
         except KeyError:
             logging.exception(
                 "Unknown protocol action '{0}', or an error occurred".format(action)
             )
+        except IndexError:
+            logging.exception(
+                "An error occurred during execution of '{0}'".format(action)
+            )
 
     def initial_connect(self):
-        """Invite the new client to the default channel."""
+        """
+        Notify the client that it has been accepted, and invite the new
+        client to the default channel.
+
+        """
         self.server.queue_message(
             "ACCEPTED: %s\r\n" % self.server.hostname, self.sender_socket
         )
@@ -76,16 +88,18 @@ class Parser(object):
             real_name = information.split('"')[3]
             version = information.split('"')[4].strip()
         except IndexError:
-            self.sender_client.add_message(
-                "NOTACCEPTED: Syntax error, please resend the CONNECT request\r\n"
+            self.server.queue_message(
+                "NOTACCEPTED: Syntax error, please resend the CONNECT request\r\n",
+                self.sender_socket
             )
             pass
         else:
             try:
                 user = User(self.sender_client, nickname, real_name)
             except NameError:
-                self.sender_client.add_message(
-                    "NICKNAMEINUSE: The nickname '%s' is already taken\r\n" % nickname
+                self.server.queue_message(
+                    "NICKNAMEINUSE: The nickname '%s' is already taken\r\n" % nickname,
+                    self.sender_socket
                 )
             else:
                 self.sender_client.user = user
@@ -132,6 +146,27 @@ class Parser(object):
                 channel = "#" + channel
             self.sender_client.join_channel(channel)
 
+    def talk_session(self):
+        """Put the UDP client into a talk session."""
+        session_key = int(self.data.split(":")[1].strip())
+        try:
+            session_key = int(session_key)
+        except ValueError:
+            self.server.queue_message(
+                "SESSIONERROR: Invalid session key '%s'\r\n" % session_key,
+                self.sender_socket
+            )
+        else:
+            if session_key in Talk.talk_sessions:
+                talk = Talk.talk_sessions[session_key]
+                talk_action = TalkAction(None, "INITIATE")
+                talk.add_action(talk_action)
+            else:
+                self.server.queue_message(
+                    "SESSIONERROR: Invalid session key '%s'\r\n" % session_key,
+                    self.sender_socket
+                )
+
     def talk(self):
         """
         Handle VoIP talking.
@@ -147,14 +182,25 @@ class Parser(object):
             END     - end a conversation
 
         """
+        talk = None
         action = self.data.split(":")[1].strip()
         target = self.data.split(":")[0].split()[1]
-        session_key = self.data.split(":")[0].split()[2]
-        try:
+        logging.debug("Talk action '%s'" % action)
+        if action == "REQUEST":
+            session_key = random.randint(100000000000000, 999999999999999)
+            while session_key in Talk.talk_sessions:
+                session_key = random.randint(100000000000000, 999999999999999)
             talk = Talk(session_key)
-        except NameError:
-            talk = Talk.talk_sessions[session_key]
-        talk_action = TalkAction(target, action)
-        talk.add_action(talk_action)
-        talk.start()
+        else:
+            session_key = self.data.split(":")[0].split()[2]
+            try:
+                talk = Talk.talk_sessions[session_key]
+            except KeyError:
+                self.server.queue_message(
+                    "TALK: BADSESSIONKEY\r\n", self.sender_socket
+                )
+        if talk is not None:
+            talk_action = TalkAction(target, action)
+            talk.add_action(talk_action)
+            talk.start()
 

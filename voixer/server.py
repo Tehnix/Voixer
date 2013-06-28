@@ -74,7 +74,7 @@ class Server(object):
         while self.inputs:
             if not already_waiting:
                 logging.debug("Waiting for sockets to be ready...")
-            self.r, self.w, self.e = select.select(self.inputs, self.outputs, self.inputs, 2)
+            self.r, self.w, self.e = select.select(self.inputs, self.outputs, self.inputs, 1)
             already_waiting = False
             if not (self.r or self.w or self.e):
                 self.ping()

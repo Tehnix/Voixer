@@ -27,11 +27,21 @@ class Channel(object):
 
     def add_user(self, user_obj):
         """Add a user to the self.users_in_room list."""
+        for user in self.users_in_room:
+            user.client.server.queue_message(
+                "USERJOIN %s: %s" % (self.name, user_obj.nickname),
+                user.client.sock
+            )
         self.users_in_room.append(user_obj)
 
     def remove_user(self, user_obj):
         """Remove a user from the self.users_in_room list."""
         self.users_in_room.remove(user_obj)
+        for user in self.users_in_room:
+            user.client.server.queue_message(
+                "USERLEAVE %s: %s" % (self.name, user_obj.nickname),
+                user.client.sock
+            )
 
     def clean_up_channel(self):
         """Remove disconnected users."""
